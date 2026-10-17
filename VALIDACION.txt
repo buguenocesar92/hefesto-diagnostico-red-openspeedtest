@@ -1,0 +1,1 @@
+Validacion local: sintaxis Python/YAML y sh -n correctas. Pruebas del generador: informe demo marcado, medianas correctas, rechazo NaN y no sobreescritura. Respaldo: manifest valido aceptado, corrupcion rechazada, recuperacion a carpeta nueva y rechazo destino existente. No se ejecuto Docker, Nginx, Caddy, HTTP ni medicion de red real. Completar docs/ACEPTACION.md.

@@ -1,0 +1,15 @@
+{
+  "demo": true,
+  "cliente": "Cliente ficticio",
+  "fecha": "2026-10-16",
+  "punto": "Puesto de demostración",
+  "servidor": "https://red.example.com",
+  "conexion": "Cable Ethernet",
+  "equipo": "Equipo y navegador de demostración",
+  "observaciones": "Valores inventados para probar el generador; no son mediciones reales.",
+  "pruebas": [
+    {"bajada_mbps": 95, "subida_mbps": 92, "latencia_ms": 8},
+    {"bajada_mbps": 94, "subida_mbps": 91, "latencia_ms": 9},
+    {"bajada_mbps": 96, "subida_mbps": 93, "latencia_ms": 7}
+  ]
+}
