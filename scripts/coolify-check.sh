@@ -18,10 +18,30 @@ cd "$repo_root"
 compose_files=(compose.yaml)
 
 tmp_env="$(mktemp)"
-trap 'rm -f "$tmp_env"' EXIT
-# Valores ficticios no secretos: el script no arranca los contenedores, solo
-# renderiza. Las claves con '$' (bcrypt) se manejan en Coolify con escape '$$'.
-printf 'BASIC_AUTH_USER=x123\nBASIC_AUTH_HASH=x123\n' > "$tmp_env"
+tmp_stderr="$(mktemp)"
+trap 'rm -f "$tmp_env" "$tmp_stderr"' EXIT
+
+# Extrae las variables ${VAR} de los compose del contrato y vuelca un valor
+# ficticio no secreto por cada una. Las que parecen HOST/URL reciben
+# 'https://ejemplo.invalid'. Así, agregar una ${VAR} al compose no rompe el
+# render del script. El '|| true' evita que 'set -e' mate el script cuando
+# el grep no encuentra ninguna ${VAR}.
+{
+    grep -ohE '\$\{[A-Za-z_][A-Za-z0-9_]*' "${compose_files[@]}" 2>/dev/null \
+        | sed 's/^\${//' \
+        | sort -u \
+        | { while IFS= read -r v; do
+                [[ -z "$v" ]] && continue
+                case "$v" in
+                    *HOST*|*URL*)
+                        printf '%s=https://ejemplo.invalid\n' "$v"
+                        ;;
+                    *)
+                        printf '%s=x123%s%s\n' "$v" "$RANDOM" "$RANDOM"
+                        ;;
+                esac
+            done; } || true
+} > "$tmp_env"
 
 errors=0
 fail() {
@@ -37,10 +57,18 @@ for compose_file in "${compose_files[@]}"; do
         continue
     fi
 
-    # Render sin --project-name: usa el basename del dir, salvo que el YAML
-    # lo fuerce con un 'name:' raíz.
-    r="$(docker compose -f "$compose_file" --env-file "$tmp_env" \
-            config --format json 2>/dev/null)"
+    # Render con --project-directory (paths relativos como ./ops se
+    # resuelven contra el repo) y sin --project-name (deja que compose
+    # use el basename del proyecto o el 'name:' del YAML). stderr va a
+    # un archivo aparte: si lo mezclamos con stdout, las advertencias
+    # de Docker corrompen el JSON que jq espera.
+    if ! r="$(docker compose --project-directory "$repo_root" \
+                -f "$compose_file" \
+                --env-file "$tmp_env" \
+                config --format json 2>"$tmp_stderr")"; then
+        fail "$compose_file: no renderiza: $(tr '\n' ' ' <"$tmp_stderr")"
+        continue
+    fi
 
     # Punto 2: nombre de proyecto raíz fijo.
     name_in_render="$(jq -r '.name // ""' <<<"$r")"
@@ -112,7 +140,8 @@ for compose_file in "${compose_files[@]}"; do
         done < <(jq -c '.volumes // [] | .[]' <<<"$svc_block")
     done < <(jq -r '.services | keys[]' <<<"$r")
 
-    # Punto 2: redes con nombre fijo.
+    # Punto 2: redes con nombre fijo. Null-safe: un render sin networks
+    # (p. ej. services: {}) devuelve 'networks: null' y rompe keys[].
     while IFS= read -r net; do
         [[ -z "$net" ]] && continue
         n_in_render="$(jq -r ".networks[\"$net\"].name // \"\"" <<<"$r")"
@@ -120,7 +149,7 @@ for compose_file in "${compose_files[@]}"; do
         if [[ -n "$n_in_render" && "$n_in_render" != "$expected" ]]; then
             fail "$compose_file: red '$net' con nombre fijo ('$n_in_render')"
         fi
-    done < <(jq -r '.networks | keys[]' <<<"$r")
+    done < <(jq -r '.networks // {} | keys[]' <<<"$r")
 
     # Punto 2: volúmenes con nombre fijo.
     while IFS= read -r vol; do
