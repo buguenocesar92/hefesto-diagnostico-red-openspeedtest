@@ -23,3 +23,16 @@ El generador calcula medianas y no sobrescribe un archivo existente. No captura 
 
 ## Estado
 Kit preparado y comprobado localmente. No se ejecutó Docker, Nginx, Caddy, prueba de velocidad real ni proxy de Coolify. La aceptación depende del despliegue y las pruebas descritas. El ZIP contiene configuración y scripts propios; la aplicación se obtiene mediante la imagen original, no incluye su código completo.
+
+## Despliegue en Coolify (MVP Hefesto)
+
+Coolify publica la app bajo el dominio configurado y termina TLS con su Traefik; este compose solo expone el puerto interno del gateway (`8080`) y deja la red por defecto para que Coolify inyecte la suya. No requiere base de datos, SMTP ni endpoints extra.
+
+Variables de entorno obligatorias:
+
+| Variable | Uso | Notas |
+| --- | --- | --- |
+| `BASIC_AUTH_USER` | Usuario para Basic Auth en el gateway | 3–40 caracteres `[A-Za-z0-9_-]` |
+| `BASIC_AUTH_HASH` | Hash bcrypt cost 12 del usuario | Formato `$2[aby]$12$...` (53 chars tras el salt). En Coolify, los `$` se escapan como `$$` para que no se interpreten como variable (ej.: `$$2a$$12$$...`) |
+
+Antes de hacer push, ejecutar `bash scripts/coolify-check.sh` para validar que el compose cumple el contrato de Coolify (sin `ports:`, sin `name:` raíz, sin `internal: true`, etc.).

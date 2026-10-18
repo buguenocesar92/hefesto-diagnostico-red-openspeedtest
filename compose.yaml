@@ -1,4 +1,3 @@
-name: hefesto-diagnostico-red
 services:
   app:
     image: openspeedtest/latest:v2.0.6@sha256:a6a7e3b3e9e93cfe7b9b2eb49c60b2a93644149a0a600845d4df57148b193ff6
@@ -35,6 +34,3 @@ services:
     - no-new-privileges:true
     cap_drop:
     - ALL
-networks:
-  default:
-    internal: true
