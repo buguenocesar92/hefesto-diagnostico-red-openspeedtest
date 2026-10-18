@@ -125,6 +125,42 @@ rm -f "$tmp_script" && rm -rf "$TMP_D"
 
 assert_in "detecta-name-en-compose-original" "$out" "nombre de proyecto raíz fijo"
 
+# Test E: el compose actual debe tener healthcheck en el gateway
+# (ítem 1 del review).
+tmp_env_check="$(mktemp)"
+printf 'BASIC_AUTH_USER=x123\nBASIC_AUTH_HASH=x123\n' > "$tmp_env_check"
+render="$(docker compose --project-directory "$repo_root" \
+        -f compose.yaml --env-file "$tmp_env_check" \
+        config --format json 2>/dev/null)"
+rm -f "$tmp_env_check"
+gw_health="$(jq -r '.services.gateway.healthcheck // null' <<<"$render")"
+if [[ "$gw_health" == "null" || -z "$gw_health" ]]; then
+    fail "compose tiene healthcheck en gateway"
+else
+    echo "ok: compose tiene healthcheck en gateway"
+fi
+
+# Test F: el compose actual debe tener red backend interna y
+# 'app' en backend, 'gateway' en default+backend (ítem 2 del review).
+backend_internal="$(jq -r '.networks.backend.internal // false' <<<"$render")"
+if [[ "$backend_internal" != "true" ]]; then
+    fail "compose tiene red backend internal:true (got '$backend_internal')"
+else
+    echo "ok: compose tiene red backend internal:true"
+fi
+app_net="$(jq -r '.services.app.networks | keys | join(",")' <<<"$render")"
+if [[ "$app_net" != "backend" ]]; then
+    fail "compose: 'app' solo en red 'backend' (got '$app_net')"
+else
+    echo "ok: compose: 'app' solo en red 'backend'"
+fi
+gw_net="$(jq -r '.services.gateway.networks | keys | sort | join(",")' <<<"$render")"
+if [[ "$gw_net" != "backend,default" ]]; then
+    fail "compose: 'gateway' en 'backend,default' (got '$gw_net')"
+else
+    echo "ok: compose: 'gateway' en 'backend,default'"
+fi
+
 if [[ "$FAIL" -gt 0 ]]; then
     echo "FAIL: $FAIL prueba(s) fallaron" >&2
     exit 1
