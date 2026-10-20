@@ -1,0 +1,7 @@
+name: hefesto-diagnostico-red-openspeedtest
+services:
+  app:
+    image: example/app:1
+    environment:
+      BAD: [
+este compose no es YAML válido

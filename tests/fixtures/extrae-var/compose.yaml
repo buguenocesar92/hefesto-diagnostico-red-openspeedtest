@@ -1,0 +1,10 @@
+name: hefesto-diagnostico-red-openspeedtest
+services:
+  app:
+    image: example/app:1
+    environment:
+      NUEVA_VAR: ${NUEVA_VAR:?requerida}
+  gateway:
+    image: caddy:2-alpine
+    environment:
+      U: ${BASIC_AUTH_USER}
